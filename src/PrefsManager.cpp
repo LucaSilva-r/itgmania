@@ -263,10 +263,11 @@ PrefsManager::PrefsManager() :
 	m_iMaxHighScoresPerListForMachine	( "MaxHighScoresPerListForMachine",	10 ),
 	m_iMaxHighScoresPerListForPlayer	( "MaxHighScoresPerListForPlayer",	3 ),
 	m_bAllowMultipleHighScoreWithSameName	( "AllowMultipleHighScoreWithSameName",	true ),
-	m_DisableUploadDir("DisableUploadDir", false),
+	m_DisableUploadDir("DisableUploadDir", true),
 	m_bCelShadeModels		( "CelShadeModels",			false ),	// Work-In-Progress.. disable by default.
 	m_bPreferredSortUsesGroups	( "PreferredSortUsesGroups",		true ),
 	m_fDebounceCoinInputTime	( "DebounceCoinInputTime",		0 ),
+	m_bResetCoinsAtStartup		( "ResetCoinsAtStartup", false ),
 
 	m_fPadStickSeconds		( "PadStickSeconds",			0 ),
 	m_EditRecordModeLeadIn		("EditRecordModeLeadIn",		1.0f ),

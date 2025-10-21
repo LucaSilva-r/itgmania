@@ -319,7 +319,7 @@ static RString ReadlinkRecursive( RString sPath )
 	{
 		sPath = dereferenced;
 		char derefPath[512];
-		ssize_t linkSize = readlink(sPath, derefPath, sizeof(derefPath));
+		ssize_t linkSize = readlink(sPath.c_str(), derefPath, sizeof(derefPath));
 		if ( linkSize != -1 && linkSize != sizeof(derefPath) )
 		{
 			dereferenced = RString( derefPath, linkSize );
@@ -376,7 +376,7 @@ static RString GetDirOfExecutable( RString argv0 )
 			split( path, ":", vPath );
 			for (RString &i : vPath)
 			{
-				if( access(i + "/" + argv0, X_OK|R_OK) )
+				if( access((i + "/" + argv0).c_str(), X_OK|R_OK) )
 					continue;
 				sPath = ExtractDirectory(ReadlinkRecursive(i + "/" + argv0));
 				break;
@@ -406,15 +406,15 @@ static void ChangeToDirOfExecutable( const RString &argv0 )
 	/* Set the CWD.  Any effects of this is platform-specific; most files are read and
 	 * written through RageFile.  See also RageFileManager::RageFileManager. */
 #if defined(_WINDOWS)
-	if( _chdir( RageFileManagerUtil::sDirOfExecutable + "/.." ) )
+	if( _chdir( (RageFileManagerUtil::sDirOfExecutable + "/..").c_str() ) )
 #elif defined(UNIX)
-	if( chdir( RageFileManagerUtil::sDirOfExecutable + "/" ) )
+	if( chdir( (RageFileManagerUtil::sDirOfExecutable + "/").c_str() ) )
 #elif defined(MACOSX)
 	/* If the basename is not MacOS, then we've likely been launched via the command line
 	 * through a symlink. Assume this is the case and change to the dir of the symlink. */
 	if( Basename(RageFileManagerUtil::sDirOfExecutable) == "MacOS" )
 		CollapsePath( RageFileManagerUtil::sDirOfExecutable += "/../../../" );
-	if( chdir( RageFileManagerUtil::sDirOfExecutable ) )
+	if( chdir( RageFileManagerUtil::sDirOfExecutable.c_str() ) )
 #endif
 	{
 		LOG->Warn("Can't set current working directory to %s", RageFileManagerUtil::sDirOfExecutable.c_str());
@@ -663,6 +663,7 @@ bool RageFileManager::DeleteRecursive( const RString &sPath )
 
 void RageFileManager::CreateDir( const RString &sDir )
 {
+	if (DoesFileExist(sDir)) { return; }
 	RString sTempFile = sDir + "newdir.temp.newdir";
 	RageFile f;
 	f.Open( sTempFile, RageFile::WRITE );
@@ -706,7 +707,7 @@ bool RageFileManager::Mount( const RString &sType, const RString &sRoot_, const 
 	const RString &sPaths = ssprintf( "\"%s\", \"%s\", \"%s\"", sType.c_str(), sRoot.c_str(), sMountPoint.c_str() );
 	CHECKPOINT_M( sPaths );
 #if defined(DEBUG)
-	puts( sPaths );
+	puts( sPaths.c_str() );
 #endif
 
 	// Unmount anything that was previously mounted here.
@@ -716,13 +717,16 @@ bool RageFileManager::Mount( const RString &sType, const RString &sRoot_, const 
 	RageFileDriver *pDriver = MakeFileDriver( sType, sRoot );
 	if( pDriver == nullptr )
 	{
-		const RString errorMsg = ssprintf("Can't mount unknown VFS type \"%s\", root \"%s\"", sType.c_str(), sRoot.c_str());
-		CHECKPOINT_M( errorMsg );
-		LOG->Warn( "%s", errorMsg.c_str() );
+		CHECKPOINT_M( ssprintf("Can't mount unknown VFS type \"%s\", root \"%s\"", sType.c_str(), sRoot.c_str() ) );
+
+		if( LOG )
+			LOG->Warn("Can't mount unknown VFS type \"%s\", root \"%s\"", sType.c_str(), sRoot.c_str() );
+		else
+			fprintf( stderr, "Can't mount unknown VFS type \"%s\", root \"%s\"\n", sType.c_str(), sRoot.c_str() );
 		return false;
 	}
 
-	CHECKPOINT_M("Driver successfully made.");
+	CHECKPOINT_M(ssprintf("Driver %s successfully made.", sType.c_str()));
 
 	LoadedDriver *pLoadedDriver = new LoadedDriver;
 	pLoadedDriver->m_pDriver = pDriver;
@@ -984,7 +988,7 @@ static bool PathUsesSlowFlush( const RString &sPath )
 	};
 
 	for( unsigned i = 0; i < ARRAYLEN(FlushPaths); ++i )
-		if( !strncmp( sPath, FlushPaths[i], strlen(FlushPaths[i]) ) )
+		if( !strncmp( sPath.c_str(), FlushPaths[i], strlen(FlushPaths[i]) ) )
 			return true;
 	return false;
 }

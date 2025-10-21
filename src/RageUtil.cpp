@@ -26,6 +26,8 @@
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <random>
+#include <climits>
 
 const RString CUSTOM_SONG_PATH= "/@mem/";
 
@@ -195,7 +197,7 @@ bool HexToBinary( const RString &s, unsigned char *stringOut )
 		RString sByte = s.substr( i*2, 2 );
 
 		uint8_t val = 0;
-		if( sscanf( sByte, "%hhx", &val ) != 1 )
+		if( sscanf( sByte.c_str(), "%hhx", &val ) != 1 )
 			return false;
 		stringOut[i] = val;
 	}
@@ -405,8 +407,8 @@ RString vssprintf( const char *szFormat, va_list argList )
 	va_end(tmp);
 
 	RString sRet;
-	std::vsnprintf( sRet.GetBuffer(iNeeded), iNeeded+1, szFormat, argList );
-	sRet.ReleaseBuffer( iNeeded );
+	sRet.resize(iNeeded);
+	std::vsnprintf( &sRet.front(), iNeeded+1, szFormat, argList );
 	return sRet;
 }
 
@@ -633,7 +635,7 @@ RString serialize(const std::vector<float> & sSource, const RString &sDelimitor,
 	RString precisionStr = ssprintf("%%.%df", precision);
 	for(float s : sSource)
 	{
-		values.push_back(ssprintf(precisionStr, s));
+		values.push_back(ssprintf(precisionStr.c_str(), s));
 	}
 	return join(sDelimitor, values);
 }
@@ -755,7 +757,7 @@ void do_split( const S &Source, const C Delimitor, std::vector<S> &AddIt, const 
 		if( pos == Source.npos )
 			pos = Source.size();
 
-		if( pos-startpos > 0 || !bIgnoreEmpty )
+		if( pos > startpos || !bIgnoreEmpty )
 		{
 			/* Optimization: if we're copying the whole string, avoid substr; this
 			 * allows this copy to be refcounted, which is much faster. */
@@ -1813,7 +1815,7 @@ void MakeLower( wchar_t *p, size_t iLen )
 
 float StringToFloat( const RString &sString )
 {
-	float fOut = std::strtof(sString, nullptr);
+	float fOut = std::strtof(sString.c_str(), nullptr);
 	if (!std::isfinite(fOut))
 	{
 		fOut = 0.0f;
@@ -1825,7 +1827,7 @@ bool StringToFloat( const RString &sString, float &fOut )
 {
 	char *endPtr = nullptr;
 
-	fOut = std::strtof(sString, &endPtr);
+	fOut = std::strtof(sString.c_str(), &endPtr);
 	return sString.size() && *endPtr == '\0' && std::isfinite(fOut);
 }
 
@@ -2290,7 +2292,7 @@ namespace StringConversion
 	template<> bool FromString<float>( const RString &sValue, float &out )
 	{
 		const char *endptr = sValue.data() + sValue.size();
-		out = strtof( sValue, (char **) &endptr );
+		out = strtof( sValue.c_str(), (char **) &endptr );
 		if( endptr != sValue.data() && std::isfinite( out ) )
 			return true;
 		out = 0;

@@ -95,7 +95,7 @@ void ScreenMapControllers::Init()
 			text.LoadFromFont( THEME->GetPathF(m_sName,"title") );
 			PlayerNumber pn = (PlayerNumber)c;
 			text.SetName( "Label"+PlayerNumberToString(pn) );
-			RString sText = ssprintf(PLAYER_SLOTS.GetValue(), PlayerNumberToLocalizedString(pn).c_str());
+			RString sText = ssprintf(PLAYER_SLOTS.GetValue().c_str(), PlayerNumberToLocalizedString(pn).c_str());
 			text.SetText( sText );
 			ActorUtil::LoadAllCommands( text, m_sName );
 			m_Line.back()->AddChild( &m_textLabel[c] );
@@ -278,14 +278,15 @@ void ScreenMapControllers::Update( float fDeltaTime )
 		}
 	}
 
-	//
-	// Update devices text
-	//
-	m_textDevices.SetText( INPUTMAN->GetDisplayDevicesString() );
+	// We don't expect the connected devices to change frequently.
+	// As a result, delay how often we check for and update the device strings.
+	CallEveryNFrames(250, [this]() {
+		m_textDevices.SetText(INPUTMAN->GetDisplayDevicesString());
+		});
 
 	if( !m_WaitingForPress.IsZero() && m_DeviceIToMap.IsValid() ) // we're going to map an input
 	{
-		if( m_WaitingForPress.PeekDeltaTime() < g_fSecondsToWaitForInput )
+		if( m_WaitingForPress.Ago() < g_fSecondsToWaitForInput )
 			return; /* keep waiting */
 		m_WaitingForPress.SetZero();
 

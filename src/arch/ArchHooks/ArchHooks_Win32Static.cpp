@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <mutex> // for call_once
 
 // for QueryPerformanceCounter
 #include <windows.h>
@@ -16,7 +17,7 @@
 #pragma comment(lib, "winmm.lib")
 #endif
 
-static bool g_bTimerInitialized;
+static std::once_flag g_timerInitFlag;
 
 /* QueryPerformanceCounter variables below.
  * QueryPerformanceCounter and QueryPerformanceFrequency expect
@@ -24,17 +25,13 @@ static bool g_bTimerInitialized;
  * in the QuadPart of the LARGE_INTEGER, which is a 64-bit integer. */
 namespace {
     LARGE_INTEGER g_liFrequency;
-    LARGE_INTEGER g_liCurrentTime;
 }  // namespace
 
 static void InitTimer()
 {
-	if( g_bTimerInitialized ) {
-		return;
-	}
+	// Set the thread scheduler to let us update every 1ms.
+	timeBeginPeriod(1);
 	
-	g_bTimerInitialized = true;
-
 	// Retrieve the number of ticks per second.
 	QueryPerformanceFrequency(&g_liFrequency);
 }
@@ -42,15 +39,14 @@ static void InitTimer()
 int64_t ArchHooks::GetSystemTimeInMicroseconds()
 {
 	// Make sure the timer is initialized.
-	if (!g_bTimerInitialized) {
-		InitTimer();
-	}
-
+	std::call_once(g_timerInitFlag, InitTimer);
+	
 	// Get the current time.
-	QueryPerformanceCounter(&g_liCurrentTime);
+	LARGE_INTEGER current_time;
+	QueryPerformanceCounter(&current_time);
 
 	// Calculate the elapsed time in microseconds.
-	return (g_liCurrentTime.QuadPart * 1000000) / g_liFrequency.QuadPart;
+	return (current_time.QuadPart * 1000000LL) / g_liFrequency.QuadPart;
 }
 
 static RString GetMountDir( const RString &sDirOfExecutable )
